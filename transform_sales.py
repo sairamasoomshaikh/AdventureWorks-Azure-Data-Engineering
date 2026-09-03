@@ -40,6 +40,65 @@ print("Sales:", sales.count())
 print("Products:", products.count())
 print("Customers:", customers.count())
 print("Territories:", territories.count())
+
+# Join sales with products
+sales_products = sales.join(
+    products,
+    sales.ProductKey == products.ProductKey,
+    "left"
+)
+print("\nSales + Products:")
+print("Rows:", sales_products.count())
+
+sales_products.select(
+    sales.OrderNumber,
+    sales.ProductKey,
+    products.ProductName,
+    products.ProductPrice,
+    products.ProductCost
+).show(5)
+# Join sales + products with customers
+sales_products_customers = sales_products.join(
+    customers,
+    sales_products.CustomerKey == customers.CustomerKey,
+    "left"
+)
+
+print("\nSales + Products + Customers:")
+print("Rows:", sales_products_customers.count())
+
+sales_products_customers.select(
+    sales.OrderNumber,
+    sales.ProductKey,
+    sales.CustomerKey,
+    products.ProductName,
+    customers.FirstName,
+    customers.LastName,
+    customers.EmailAddress
+).show(5)
+# Join with territories
+sales_enriched = sales_products_customers.join(
+    territories,
+    sales_products_customers.TerritoryKey == territories.SalesTerritoryKey,
+    "left"
+)
+
+print("\nFinal Enriched Sales:")
+print("Rows:", sales_enriched.count())
+
+sales_enriched.select(
+    sales.OrderNumber,
+    sales.ProductKey,
+    sales.CustomerKey,
+    sales.TerritoryKey,
+    products.ProductName,
+    customers.FirstName,
+    customers.LastName,
+    territories.Region,
+    territories.Country,
+    territories.Continent
+).show(5)
+
 # Convert string dates into proper date columns
 sales = sales.withColumn(
     "OrderDate",

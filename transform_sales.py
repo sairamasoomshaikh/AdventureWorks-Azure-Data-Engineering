@@ -21,6 +21,25 @@ products = spark.read.csv(
     header=True,
     inferSchema=True
 )
+# Load customers data
+customers = spark.read.csv(
+    "Data/AdventureWorks_Customers.csv",
+    header=True,
+    inferSchema=True
+)
+
+# Load territories data
+territories = spark.read.csv(
+    "Data/AdventureWorks_Territories.csv",
+    header=True,
+    inferSchema=True
+)
+# Quick verification
+print("\nDataset counts:")
+print("Sales:", sales.count())
+print("Products:", products.count())
+print("Customers:", customers.count())
+print("Territories:", territories.count())
 # Convert string dates into proper date columns
 sales = sales.withColumn(
     "OrderDate",

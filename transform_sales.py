@@ -1,138 +1,55 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import to_date, col
+from pyspark.sql.functions import to_date, col, round
 
-# Start Spark
+# ============================================================
+# 1. START SPARK
+# ============================================================
+
 spark = (
     SparkSession.builder
-    .appName("SalesTransformation")
+    .appName("AaysAzureDataEngineering")
     .master("local[*]")
     .getOrCreate()
 )
 
-# Load sales data
+# ============================================================
+# 2. LOAD RAW DATA
+# ============================================================
+
 sales = spark.read.csv(
     "Data/AdventureWorks_Sales_2017.csv",
     header=True,
     inferSchema=True
 )
-# Load products data
+
 products = spark.read.csv(
     "Data/AdventureWorks_Products.csv",
     header=True,
     inferSchema=True
 )
-# Load customers data
+
 customers = spark.read.csv(
     "Data/AdventureWorks_Customers.csv",
     header=True,
     inferSchema=True
 )
 
-# Load territories data
 territories = spark.read.csv(
     "Data/AdventureWorks_Territories.csv",
     header=True,
     inferSchema=True
 )
-# Quick verification
-print("\nDataset counts:")
+
+print("\n========== DATASET COUNTS ==========")
 print("Sales:", sales.count())
 print("Products:", products.count())
 print("Customers:", customers.count())
 print("Territories:", territories.count())
 
-# Join sales with products
-sales_products = sales.join(
-    products,
-    sales.ProductKey == products.ProductKey,
-    "left"
-)
-print("\nSales + Products:")
-print("Rows:", sales_products.count())
+# ============================================================
+# 3. TRANSFORM DATES
+# ============================================================
 
-sales_products.select(
-    sales.OrderNumber,
-    sales.ProductKey,
-    products.ProductName,
-    products.ProductPrice,
-    products.ProductCost
-).show(5)
-# Join sales + products with customers
-sales_products_customers = sales_products.join(
-    customers,
-    sales_products.CustomerKey == customers.CustomerKey,
-    "left"
-)
-
-print("\nSales + Products + Customers:")
-print("Rows:", sales_products_customers.count())
-
-sales_products_customers.select(
-    sales.OrderNumber,
-    sales.ProductKey,
-    sales.CustomerKey,
-    products.ProductName,
-    customers.FirstName,
-    customers.LastName,
-    customers.EmailAddress
-).show(5)
-# Join with territories
-sales_enriched = sales_products_customers.join(
-    territories,
-    sales_products_customers.TerritoryKey == territories.SalesTerritoryKey,
-    "left"
-)
-
-print("\nFinal Enriched Sales:")
-print("Rows:", sales_enriched.count())
-
-sales_enriched.select(
-    sales.OrderNumber,
-    sales.ProductKey,
-    sales.CustomerKey,
-    sales.TerritoryKey,
-    products.ProductName,
-    customers.FirstName,
-    customers.LastName,
-    territories.Region,
-    territories.Country,
-    territories.Continent
-).show(5)
-# Add business calculations
-sales_enriched = sales_enriched.withColumn(
-    "SalesAmount",
-    col("ProductPrice") * col("OrderQuantity")
-)
-
-sales_enriched = sales_enriched.withColumn(
-    "CostAmount",
-    col("ProductCost") * col("OrderQuantity")
-)
-
-sales_enriched = sales_enriched.withColumn(
-    "ProfitAmount",
-    col("SalesAmount") - col("CostAmount")
-)
-
-sales_enriched = sales_enriched.withColumn(
-    "ProfitMargin",
-    col("ProfitAmount") / col("SalesAmount")
-)
-
-print("\nBusiness Calculations:")
-sales_enriched.select(
-    "OrderNumber",
-    "ProductName",
-    "OrderQuantity",
-    "ProductPrice",
-    "ProductCost",
-    "SalesAmount",
-    "CostAmount",
-    "ProfitAmount",
-    "ProfitMargin"
-).show(5)
-
-# Convert string dates into proper date columns
 sales = sales.withColumn(
     "OrderDate",
     to_date(col("OrderDate"), "M/d/yyyy")
@@ -143,41 +60,184 @@ sales = sales.withColumn(
     to_date(col("StockDate"), "M/d/yyyy")
 )
 
-# -----------------------------
-# Data Quality Checks
-# -----------------------------
+# ============================================================
+# 4. JOIN SALES + PRODUCTS
+# ============================================================
 
-print("\nData Quality Checks:")
+sales_products = sales.join(
+    products,
+    sales.ProductKey == products.ProductKey,
+    "left"
+)
 
-# 1. Check for missing OrderNumber
-null_orders = sales.filter(
+# ============================================================
+# 5. JOIN CUSTOMERS
+# ============================================================
+
+sales_products_customers = sales_products.join(
+    customers,
+    sales_products.CustomerKey == customers.CustomerKey,
+    "left"
+)
+
+# ============================================================
+# 6. JOIN TERRITORIES
+# ============================================================
+
+sales_enriched = sales_products_customers.join(
+    territories,
+    sales_products_customers.TerritoryKey
+    == territories.SalesTerritoryKey,
+    "left"
+)
+
+# ============================================================
+# 7. SELECT FINAL COLUMNS
+# ============================================================
+
+sales_enriched = sales_enriched.select(
+    sales.OrderDate,
+    sales.StockDate,
+    sales.OrderNumber,
+    sales.OrderLineItem,
+    sales.ProductKey,
+    sales.CustomerKey,
+    sales.TerritoryKey,
+
+    products.ProductSKU,
+    products.ProductName,
+    products.ProductSubcategoryKey,
+    products.ProductColor,
+    products.ProductSize,
+    products.ProductStyle,
+    products.ProductCost,
+    products.ProductPrice,
+
+    customers.FirstName,
+    customers.LastName,
+    customers.EmailAddress,
+    customers.AnnualIncome,
+    customers.TotalChildren,
+    customers.EducationLevel,
+    customers.Occupation,
+    customers.HomeOwner,
+
+    territories.Region,
+    territories.Country,
+    territories.Continent,
+
+    sales.OrderQuantity
+)
+
+# ============================================================
+# 8. BUSINESS CALCULATIONS
+# ============================================================
+
+sales_enriched = sales_enriched.withColumn(
+    "SalesAmount",
+    round(col("ProductPrice") * col("OrderQuantity"), 2)
+)
+
+sales_enriched = sales_enriched.withColumn(
+    "CostAmount",
+    round(col("ProductCost") * col("OrderQuantity"), 2)
+)
+
+sales_enriched = sales_enriched.withColumn(
+    "ProfitAmount",
+    round(col("SalesAmount") - col("CostAmount"), 2)
+)
+
+sales_enriched = sales_enriched.withColumn(
+    "ProfitMargin",
+    round(
+        col("ProfitAmount") / col("SalesAmount"),
+        4
+    )
+)
+
+# ============================================================
+# 9. DATA QUALITY CHECKS
+# ============================================================
+
+print("\n========== DATA QUALITY CHECKS ==========")
+
+null_orders = sales_enriched.filter(
     col("OrderNumber").isNull()
 ).count()
 
-print("Null OrderNumbers:", null_orders)
-
-# 2. Check for missing ProductKey
-null_products = sales.filter(
-    col("ProductKey").isNull()
+null_products = sales_enriched.filter(
+    col("ProductName").isNull()
 ).count()
 
-print("Null ProductKeys:", null_products)
-
-# 3. Check for missing CustomerKey
-null_customers = sales.filter(
-    col("CustomerKey").isNull()
+null_customers = sales_enriched.filter(
+    col("FirstName").isNull()
 ).count()
 
-print("Null CustomerKeys:", null_customers)
+null_territories = sales_enriched.filter(
+    col("Region").isNull()
+).count()
 
-# 4. Check for invalid quantities
-invalid_quantity = sales.filter(
+invalid_quantity = sales_enriched.filter(
     col("OrderQuantity") <= 0
 ).count()
 
+invalid_sales = sales_enriched.filter(
+    col("SalesAmount") <= 0
+).count()
+
+invalid_profit_margin = sales_enriched.filter(
+    col("SalesAmount") == 0
+).count()
+
+print("Null OrderNumbers:", null_orders)
+print("Unmatched Products:", null_products)
+print("Unmatched Customers:", null_customers)
+print("Unmatched Territories:", null_territories)
 print("Invalid OrderQuantities:", invalid_quantity)
+print("Invalid SalesAmounts:", invalid_sales)
+print("Zero SalesAmount records:", invalid_profit_margin)
 
+# ============================================================
+# 10. DISPLAY FINAL DATA
+# ============================================================
 
+print("\n========== FINAL ENRICHED DATA ==========")
 
-# Stop Spark
+print("Final row count:", sales_enriched.count())
+print("Final column count:", len(sales_enriched.columns))
+
+sales_enriched.select(
+    "OrderDate",
+    "OrderNumber",
+    "ProductName",
+    "OrderQuantity",
+    "ProductPrice",
+    "SalesAmount",
+    "CostAmount",
+    "ProfitAmount",
+    "ProfitMargin",
+    "FirstName",
+    "LastName",
+    "Region",
+    "Country"
+).show(10, truncate=False)
+
+# ============================================================
+# 11. WRITE TRANSFORMED DATA TO PARQUET
+# ============================================================
+
+output_path = "output/sales_enriched"
+
+sales_enriched.write \
+    .mode("overwrite") \
+    .parquet(output_path)
+
+print("\n========== ETL COMPLETE ==========")
+print("Output written to:", output_path)
+
+# ============================================================
+# 12. STOP SPARK
+# ============================================================
+
 spark.stop()

@@ -98,6 +98,39 @@ sales_enriched.select(
     territories.Country,
     territories.Continent
 ).show(5)
+# Add business calculations
+sales_enriched = sales_enriched.withColumn(
+    "SalesAmount",
+    col("ProductPrice") * col("OrderQuantity")
+)
+
+sales_enriched = sales_enriched.withColumn(
+    "CostAmount",
+    col("ProductCost") * col("OrderQuantity")
+)
+
+sales_enriched = sales_enriched.withColumn(
+    "ProfitAmount",
+    col("SalesAmount") - col("CostAmount")
+)
+
+sales_enriched = sales_enriched.withColumn(
+    "ProfitMargin",
+    col("ProfitAmount") / col("SalesAmount")
+)
+
+print("\nBusiness Calculations:")
+sales_enriched.select(
+    "OrderNumber",
+    "ProductName",
+    "OrderQuantity",
+    "ProductPrice",
+    "ProductCost",
+    "SalesAmount",
+    "CostAmount",
+    "ProfitAmount",
+    "ProfitMargin"
+).show(5)
 
 # Convert string dates into proper date columns
 sales = sales.withColumn(

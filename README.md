@@ -1,97 +1,353 @@
-# Azure Retail Data Engineering Pipeline
+# Aays Azure Data Engineering Project
 
-## Overview
-An end-to-end Azure data engineering project using the AdventureWorks retail dataset. The solution demonstrates ingestion, distributed transformation, data-quality validation, analytics-ready serving datasets, SQL warehousing, and Power BI reporting.
-
-## Architecture
+End-to-end Azure data engineering project based on the AdventureWorks sales dataset.
 
 ```text
 AdventureWorks CSV
-      |
-      v
+       ↓
 Azure Data Factory
-      |
-      v
-ADLS Gen2 - Raw
-      |
-      v
+       ↓
+ADLS Gen2
+       ↓
+Bronze
+       ↓
 Azure Databricks / PySpark
-      |
-      +--> Data quality checks
-      |
-      +--> ADLS Gen2 - Transform (Parquet)
-      |
-      +--> ADLS Gen2 - Serving (Gold metrics)
-      |
-      v
-Azure Synapse Serverless SQL
-      |
-      v
+       ↓
+Silver
+       ↓
+Gold
+       ↙       ↘
+Azure Synapse   Power BI
+Serverless SQL  Dashboard
+Project Overview
+
+This project demonstrates an end-to-end data engineering workflow using Python, PySpark, SQL, Azure Data Factory, Azure Data Lake Storage Gen2, Azure Databricks, Azure Synapse Analytics, Parquet, and Power BI.
+
+The pipeline ingests AdventureWorks sales data, stores it in a Bronze layer, transforms and validates the data using PySpark, produces analytical Gold datasets, exposes the data through Synapse Serverless SQL, and provides a Power BI reporting layer.
+
+The project follows a Bronze/Silver/Gold data lake architecture.
+
+Architecture
+AdventureWorks CSV
+       |
+       v
+Azure Data Factory
+       |
+       v
+Azure Data Lake Storage Gen2
+       |
+       v
+Bronze Layer
+       |
+       v
+Azure Databricks / PySpark
+       |
+       v
+Silver Layer
+       |
+       v
+Gold Layer
+       |
+       +-------------------------+
+       |                         |
+       v                         v
+Azure Synapse              Power BI
+Serverless SQL             Dashboard
+       |
+       v
+SQL Analytics
+Technologies Used
+Python
+SQL
+PySpark
+Pandas
+Azure Data Factory
+Azure Data Lake Storage Gen2
+Azure Databricks
+Azure Synapse Analytics
 Power BI
-```
+Parquet
+Git
+GitHub
+Data Pipeline
+1. Source Data
 
-## What I changed / added
-- Parameterized the Databricks storage-account configuration instead of embedding cloud credentials.
-- Removed committed client secrets from the notebook.
-- Added reusable PySpark data-quality checks for null keys, positive quantities, and duplicate identifiers.
-- Added analytics-ready Gold datasets for monthly sales performance and product return performance.
-- Made transformation writes idempotent with overwrite mode, preventing duplicate output on repeated runs.
-- Added Synapse data-quality SQL checks for nulls, invalid quantities, duplicates, and orphan product keys.
-- Added business-focused SQL views and KPI examples.
-- Corrected a customer-view reference in the original insight queries.
+The project uses the AdventureWorks dataset containing information about:
 
-## Azure components
-- Azure Data Factory — ingestion and orchestration
-- Azure Data Lake Storage Gen2 — raw, transform, and serving zones
-- Azure Databricks — PySpark transformation and validation
-- Azure Synapse Analytics — serverless SQL / warehouse-style serving
-- Power BI — analytics and visualization
+Sales orders
+Customers
+Products
+Territories
 
-## Data layers
+The sales data covers:
 
-### Raw
-Source CSV files are retained with minimal modification.
+2015
+2016
+2017
 
-### Transform
-Databricks converts source data into analytics-friendly Parquet datasets, including type normalization and derived fields.
+The repository also contains supporting customer, product, and territory datasets used during the transformation process.
 
-### Serving / Gold
-Business-oriented datasets are created for downstream SQL and BI:
-- Monthly sales performance
-- Product return performance
+2. Bronze Layer
 
-## Data quality
-The Databricks notebook validates:
-- Required sales identifiers are not null
-- Order quantities are positive
-- Sales order numbers are unique
-- Customer keys are unique
-- Product keys are unique
+The Bronze layer stores the ingested sales data with minimal transformation.
 
-Additional Synapse SQL checks are provided in `data_quality_checks.sql`.
+Azure Data Factory is used as the ingestion and orchestration component to copy the source sales data into Azure Data Lake Storage Gen2.
 
-## Running the Databricks notebook
-1. Upload the notebook to Azure Databricks.
-2. Configure an Azure Key Vault-backed secret scope or managed identity for ADLS access.
-3. Set the `storage_account` notebook parameter.
-4. Run the notebook.
-5. Execute the Synapse SQL scripts after the Parquet outputs are available.
-6. Repoint the Power BI dataset to your Synapse endpoint if required.
+The Bronze layer preserves the source data in Parquet format for downstream processing.
 
-## Security note
-No Azure client secrets, tenant secrets, or access tokens are included in this repository. Authentication should be supplied through managed identity or a Databricks secret scope.
+3. Silver Layer
 
-## Repository structure
-```text
-Data/                              # AdventureWorks source data
-data_transformations_databricks.ipynb
-dataset_load.json
-create_schema.sql
-create_views_servinglayer.sql
-create_external_table.sql
-create_gold_views.sql
-data_quality_checks.sql
+Azure Databricks and PySpark are used to transform the Bronze data into an enriched analytical dataset.
+
+Transformations include:
+
+Parsing OrderDate and StockDate
+Joining sales with product information
+Joining sales with customer information
+Joining sales with territory information
+Calculating sales amounts
+Calculating cost amounts
+Calculating profit
+Calculating profit margin
+Performing data-quality validation
+4. Gold Layer
+
+The Gold layer contains analytical datasets and business-focused outputs used for reporting and analysis.
+
+The project includes Gold-level metrics such as:
+
+Monthly sales performance
+Product return/performance analysis
+Sales and profit metrics
+Business-focused analytical views
+
+These datasets are designed to make downstream SQL analysis and reporting easier.
+
+Azure Data Lake Storage Structure
+aays-data/
+├── source/
+│   └── sales/
+├── bronze/
+│   └── sales/
+├── silver/
+│   └── sales/
+└── gold/
+    ├── monthly_sales/
+    └── product_returns/
+Azure Data Factory
+
+Azure Data Factory is used as the ingestion and orchestration component.
+
+The project includes the following pipeline components:
+
+PL_Aays_Sales_ETL
+Copy_Sales_To_Bronze
+DS_Source_Sales_CSV
+DS_Bronze_Sales_Parquet
+
+The pipeline demonstrates moving source sales data into the Bronze layer of ADLS Gen2.
+
+Azure Databricks
+
+Azure Databricks is used for PySpark-based data processing.
+
+The Databricks transformation workflow:
+
+Reads Bronze Parquet data
+Parses and transforms the sales data
+Joins sales with supporting datasets
+Calculates business metrics
+Performs data-quality checks
+Writes transformed data to downstream layers
+
+The implementation uses parameterized storage configuration rather than embedding Azure credentials directly in the notebook.
+
+Azure credentials and secrets are not committed to the repository.
+
+Data Quality
+
+The PySpark pipeline performs data-quality validation during processing.
+
+Checks include:
+
+Missing OrderNumber
+Missing ProductKey
+Missing CustomerKey
+Unmatched product records
+Unmatched customer records
+Unmatched territory records
+Invalid order quantities
+Invalid sales amounts
+Zero sales amounts
+
+The local dataset contains:
+
+56,046 sales records
+
+The pipeline was used to validate the sales data before producing the transformed output.
+
+Azure Synapse Analytics
+
+Azure Synapse Serverless SQL is used as the analytical SQL layer.
+
+The Gold Parquet datasets can be queried using OPENROWSET.
+
+Example:
+
+SELECT TOP 10
+    *
+FROM OPENROWSET(
+    BULK 'https://aaysdataeng2026.dfs.core.windows.net/aays-data/gold/monthly_sales/*.parquet',
+    FORMAT = 'PARQUET'
+) AS [result];
+
+The repository includes SQL scripts for:
+
+Creating schemas
+Creating external tables
+Creating serving-layer views
+Creating Gold views
+Data-quality checks
+Business and analytical queries
+SQL Analytics
+
+The project includes SQL queries for analyzing transformed sales data.
+
+Examples include:
+
+Sales by Year
+SELECT
+    OrderYear,
+    COUNT(*) AS TotalSalesRecords,
+    SUM(OrderQuantity) AS TotalQuantity
+FROM silver_sales
+GROUP BY OrderYear
+ORDER BY OrderYear;
+Top Products
+SELECT
+    ProductKey,
+    SUM(OrderQuantity) AS TotalQuantity,
+    COUNT(DISTINCT OrderNumber) AS TotalOrders
+FROM silver_sales
+GROUP BY ProductKey
+ORDER BY TotalQuantity DESC;
+Sales by Territory
+SELECT
+    TerritoryKey,
+    COUNT(DISTINCT OrderNumber) AS TotalOrders,
+    SUM(OrderQuantity) AS TotalQuantity
+FROM silver_sales
+GROUP BY TerritoryKey
+ORDER BY TotalQuantity DESC;
+
+Additional business-focused queries are available in:
+
 query_insights.sql
+Data Warehouse Concepts
+
+The project also demonstrates analytical data warehouse concepts through SQL schemas, external tables, and serving-layer views.
+
+The SQL layer is designed to support analytical reporting from the transformed data stored in ADLS Gen2.
+
+Power BI Dashboard
+
+The project includes:
+
 Azure_PowerBI_Dashboard.pbix
-README.md
-```
+
+The Power BI report represents the reporting and visualization layer of the data engineering pipeline.
+
+The dashboard is based on the analytical data produced by the pipeline.
+
+Project Structure
+Aays-Azure-Data-Engineering/
+│
+├── Data/
+│   ├── AdventureWorks_Sales_2015.csv
+│   ├── AdventureWorks_Sales_2016.csv
+│   ├── AdventureWorks_Sales_2017.csv
+│   ├── AdventureWorks_Customers.csv
+│   ├── AdventureWorks_Products.csv
+│   └── AdventureWorks_Territories.csv
+│
+├── output/
+│   └── sales_enriched/
+│
+├── src/
+│
+├── Azure_PowerBI_Dashboard.pbix
+├── create_schema.sql
+├── create_external_table.sql
+├── create_views_servinglayer.sql
+├── create_gold_views.sql
+├── data_quality_checks.sql
+├── query_insights.sql
+├── dataset_load.json
+├── data_transformations_databricks.ipynb
+├── explore_data.py
+├── explore_products.py
+├── explore_sales.py
+├── explore_territories.py
+├── transform_sales.py
+├── test_python.py
+├── test_spark.py
+├── CHANGES.md
+└── README.md
+Key Learning Areas
+
+This project demonstrates practical experience with:
+
+ETL and ELT concepts
+Data ingestion
+Data transformation
+PySpark
+SQL analytics
+Data lake architecture
+Bronze/Silver/Gold architecture
+Data-quality validation
+Azure cloud services
+Azure Data Factory
+Azure Databricks
+Azure Synapse Serverless SQL
+Analytical data processing
+Git version control
+GitHub
+Security
+
+Azure credentials and secrets are not stored in the repository.
+
+The Databricks implementation uses parameterized storage configuration rather than hard-coded Azure credentials.
+
+For production deployments, Azure identity-based authentication and services such as Azure Key Vault or managed identities should be used for secure access to Azure resources.
+
+Cost Awareness
+
+The Azure implementation uses Azure for Students resources.
+
+The project uses services including:
+
+Azure Data Lake Storage Gen2
+Azure Data Factory
+Azure Databricks
+Azure Synapse Serverless SQL
+
+Azure services can incur usage-based charges, so unnecessary compute and SQL queries should be avoided.
+
+Future Improvements
+
+Possible future improvements include:
+
+Incremental data loading
+Parameterized Azure Data Factory pipelines
+Delta Lake tables
+Additional data-quality monitoring
+Automated pipeline scheduling
+Advanced dashboard filtering
+CI/CD integration
+Pipeline monitoring and alerting
+Author
+
+Saira MS
+Vishnu Dutt K
+
+Azure Data Engineering portfolio project focused on Python, SQL, PySpark, Azure data services, data pipelines, data warehousing, data quality, and analytical processing.

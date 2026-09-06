@@ -1,4 +1,4 @@
-# Aays Azure Data Engineering Project
+# AdventureWorks Azure Data Engineering Pipeline
 
 End-to-end Azure data engineering project based on the AdventureWorks sales dataset.
 
@@ -260,7 +260,7 @@ The Power BI report represents the reporting and visualization layer of the data
 The dashboard is based on the analytical data produced by the pipeline.
 
 Project Structure
-Aays-Azure-Data-Engineering/
+AdventureWorks-Azure-Data-Engineering/
 │
 ├── Data/
 │   ├── AdventureWorks_Sales_2015.csv
